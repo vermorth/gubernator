@@ -14,8 +14,8 @@ docker:
 
 release:
 	mkdir -p ./bin
-	GOOS=darwin GOARCH=amd64 go build -ldflags $(LDFLAGS) -o ./bin/gubernator.darwin ./cmd/gubernator/main.go
-	GOOS=linux GOARCH=amd64 go build -ldflags $(LDFLAGS) -o ./bin/gubernator.linux ./cmd/gubernator/main.go
+	GOOS=darwin GOARCH=amd64 go build -mod=vendor -ldflags $(LDFLAGS) -o ./bin/gubernator.darwin ./cmd/gubernator/main.go
+	GOOS=linux GOARCH=amd64 go build -mod=vendor -ldflags $(LDFLAGS) -o ./bin/gubernator.linux ./cmd/gubernator/main.go
 
 proto:
 	scripts/proto.sh
