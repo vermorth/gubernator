@@ -346,11 +346,11 @@ func (m *RateLimitReq) GetBehavior() Behavior {
 
 type RateLimitResp struct {
 	// The status of the rate limit.
-	Status Status `protobuf:"varint,1,opt,name=status,proto3,enum=pb.gubernator.Status" json:"status,omitempty"`
+	Status Status `protobuf:"varint,1,opt,name=status,proto3,enum=pb.gubernator.Status" json:"status"`
 	// The currently configured request limit (Identical to RateLimitRequest.rate_limit_config.limit).
-	Limit int64 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Limit int64 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit"`
 	// This is the number of requests remaining before the limit is hit.
-	Remaining int64 `protobuf:"varint,3,opt,name=remaining,proto3" json:"remaining,omitempty"`
+	Remaining int64 `protobuf:"varint,3,opt,name=remaining,proto3" json:"remaining"`
 	// This is the time when the rate limit span will be reset, provided as a unix timestamp in milliseconds.
 	ResetTime int64 `protobuf:"varint,4,opt,name=reset_time,json=resetTime,proto3" json:"reset_time,omitempty"`
 	// Contains the error; If set all other values should be ignored

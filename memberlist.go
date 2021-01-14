@@ -43,6 +43,9 @@ type MemberListPool struct {
 }
 
 type MemberListPoolConfig struct {
+	// (Required) Callback address. Defaults to GUBER_ADVERTISE_ADDRESS
+	CallbackAddress string
+
 	// (Required) This is the address:port the member list protocol listen for other members on
 	MemberListAddress string
 
@@ -72,24 +75,24 @@ func NewMemberListPool(ctx context.Context, conf MemberListPoolConfig) (*MemberL
 		conf: conf,
 	}
 
-	host, port, err := splitAddress(conf.MemberListAddress)
+	lisHost, lisPort, err := splitAddress(conf.MemberListAddress)
 	if err != nil {
-		return nil, errors.Wrap(err, "MemberListAddress=`%s` is invalid;")
+		return nil, errors.Wrapf(err, "MemberListAddress=`%s` is invalid;", conf.MemberListAddress)
 	}
 
 	// Member list requires the address to be an ip address
-	if ip := net.ParseIP(host); ip == nil {
-		addrs, err := net.LookupHost(host)
+	if ip := net.ParseIP(lisHost); ip == nil {
+		addrs, err := net.LookupHost(lisHost)
 		if err != nil {
-			return nil, errors.Wrapf(err, "while preforming host lookup for '%s'", host)
+			return nil, errors.Wrapf(err, "while preforming host lookup for '%s'", lisHost)
 		}
 		if len(addrs) == 0 {
-			return nil, errors.Wrapf(err, "net.LookupHost() returned no addresses for '%s'", host)
+			return nil, errors.Wrapf(err, "net.LookupHost() returned no addresses for '%s'", lisHost)
 		}
-		host = addrs[0]
+		lisHost = addrs[0]
 	}
 
-	_, advPort, err := splitAddress(conf.AdvertiseAddress)
+	advHost, advPort, err := splitAddress(conf.AdvertiseAddress)
 	if err != nil {
 		return nil, errors.Wrap(err, "AdvertiseAddress=`%s` is invalid;")
 	}
@@ -99,9 +102,12 @@ func NewMemberListPool(ctx context.Context, conf MemberListPoolConfig) (*MemberL
 
 	// Configure member list
 	config := ml.DefaultWANConfig()
+	config.Name = conf.AdvertiseAddress
 	config.Events = m.events
-	config.AdvertiseAddr = host
-	config.AdvertisePort = port
+	config.BindAddr = lisHost
+	config.BindPort = lisPort
+	config.AdvertiseAddr = advHost
+	config.AdvertisePort = advPort
 
 	if conf.NodeName != "" {
 		config.Name = conf.NodeName
@@ -117,11 +123,15 @@ func NewMemberListPool(ctx context.Context, conf MemberListPoolConfig) (*MemberL
 	m.memberList = memberList
 
 	// Prep metadata
+	_, callPort, err := splitAddress(conf.CallbackAddress)
+	if err != nil {
+		return nil, errors.Wrapf(err, "CallbackAddress=`%s` is invalid;", conf.CallbackAddress)
+	}
 	gob.Register(memberListMetadata{})
 	metadata := memberListMetadata{
 		DataCenter:       conf.DataCenter,
-		AdvertiseAddress: conf.AdvertiseAddress,
-		GubernatorPort:   advPort,
+		AdvertiseAddress: conf.CallbackAddress,
+		GubernatorPort:   callPort,
 	}
 
 	// Join member list pool
@@ -144,6 +154,7 @@ func (m *MemberListPool) joinPool(ctx context.Context, knownNodes []string, meta
 
 	err = retry.Until(ctx, retry.Interval(clock.Millisecond*300), func(ctx context.Context, i int) error {
 		// Join member list
+		m.log.Infof("MemberList Join KnownNodes: %v", knownNodes)
 		_, err = m.memberList.Join(knownNodes)
 		if err != nil {
 			return errors.Wrap(err, "while joining member-list")
@@ -246,7 +257,12 @@ func (e *memberListEventHandler) callOnUpdate() {
 	var peers []PeerInfo
 
 	for _, p := range e.peers {
-		if p.GRPCAddress == e.conf.AdvertiseAddress {
+		e.log.Debugf("Peer GRPCAddress:%s, Peer HTTPAddress:%s, My CallbackAddress:%s, IsOwner:%v",
+			p.GRPCAddress,
+			p.HTTPAddress,
+			e.conf.CallbackAddress,
+			p.GRPCAddress == e.conf.CallbackAddress)
+		if p.GRPCAddress == e.conf.CallbackAddress {
 			p.IsOwner = true
 		}
 		peers = append(peers, p)

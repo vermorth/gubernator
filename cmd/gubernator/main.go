@@ -36,7 +36,7 @@ func main() {
 	var configFile string
 	var err error
 
-	logrus.Infof("Gubernator %s (%s/%s)", Version, runtime.GOARCH, runtime.GOOS)
+	logrus.Infof("Gubernator %s (%s/%s) (GOMAXPROCS:%v)", Version, runtime.GOARCH, runtime.GOOS, runtime.GOMAXPROCS(0))
 	flags := flag.NewFlagSet("gubernator", flag.ContinueOnError)
 	flags.StringVar(&configFile, "config", "", "environment config file")
 	flags.BoolVar(&gubernator.DebugEnabled, "debug", false, "enable debug")

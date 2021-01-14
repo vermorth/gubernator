@@ -317,10 +317,11 @@ func (s *V1Instance) HealthCheck(ctx context.Context, r *HealthCheckReq) (*Healt
 	}
 
 	s.health.Status = Healthy
+	s.health.PeerCount = int32(s.conf.LocalPicker.Size())
+
 	if len(errs) != 0 {
 		s.health.Status = UnHealthy
 		s.health.Message = strings.Join(errs, "|")
-		s.health.PeerCount = int32(s.conf.LocalPicker.Size())
 	}
 
 	defer s.peerMutex.RUnlock()
