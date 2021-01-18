@@ -172,7 +172,7 @@ func main() {
 	// http bench
 	if apiType == "http" {
 		tr := &http.Transport{
-			MaxIdleConns:        16,
+			MaxIdleConns:        1000,
 			MaxIdleConnsPerHost: 1000,
 			IdleConnTimeout:     30 * time.Second,
 		}

@@ -16,7 +16,8 @@ release:
 	mkdir -p ./bin
 	GOOS=darwin GOARCH=amd64 go build -mod=vendor -ldflags $(LDFLAGS) -o ./bin/gubernator.darwin ./cmd/gubernator/main.go
 	GOOS=linux GOARCH=amd64 go build -mod=vendor -ldflags $(LDFLAGS) -o ./bin/gubernator.linux ./cmd/gubernator/main.go
-
+	GOOS=darwin GOARCH=amd64 go build -mod=vendor -o bin/gubernator-cli.darwin cmd/gubernator-cli/main.go
+	GOOS=linux GOARCH=amd64 go build -mod=vendor -o bin/gubernator-cli.linux cmd/gubernator-cli/main.go
 proto:
 	scripts/proto.sh
 

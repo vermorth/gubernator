@@ -18,11 +18,12 @@ package gubernator
 
 import (
 	"context"
-	"log"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"strings"
 
+	"github.com/fasthttp/router"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/mailgun/holster/v3/etcdutil"
 	"github.com/mailgun/holster/v3/setter"
@@ -31,19 +32,22 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/fasthttpadaptor"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
 type Daemon struct {
-	GRPCListeners []net.Listener
-	HTTPListener  net.Listener
-	V1Server      *V1Instance
+	GRPCListeners   []net.Listener
+	HTTPListener    net.Listener
+	TLSHTTPListener net.Listener
+	V1Server        *V1Instance
 
 	log          logrus.FieldLogger
 	pool         PoolInterface
 	conf         DaemonConfig
-	httpSrv      *http.Server
+	httpSrv      *fasthttp.Server
 	grpcSrvs     []*grpc.Server
 	wg           syncutil.WaitGroup
 	statsHandler *GRPCStatsHandler
@@ -151,6 +155,8 @@ func (s *Daemon) Start(ctx context.Context) error {
 		}
 	}
 
+	s.log.Debugf("gatewayAddr: %s", gatewayAddr)
+
 	switch s.conf.PeerDiscoveryType {
 	case "k8s":
 		// Source our list of peers from kubernetes endpoint API
@@ -186,20 +192,23 @@ func (s *Daemon) Start(ctx context.Context) error {
 	gateway := runtime.NewServeMux()
 	var gwCtx context.Context
 	gwCtx, s.gwCancel = context.WithCancel(context.Background())
-	err = RegisterV1HandlerFromEndpoint(gwCtx, gateway, gatewayAddr, []grpc.DialOption{grpc.WithInsecure()})
+	// err = RegisterV1HandlerFromEndpoint(gwCtx, gateway, gatewayAddr, []grpc.DialOption{grpc.WithInsecure()})
+	err = RegisterV1HandlerServer(gwCtx, gateway, s.V1Server)
 	if err != nil {
 		return errors.Wrap(err, "while registering GRPC gateway handler")
 	}
 
 	// Serve the JSON Gateway and metrics handlers via standard HTTP/1
-	mux := http.NewServeMux()
-
-	mux.Handle("/metrics", promhttp.InstrumentMetricHandler(
+	router := router.New()
+	router.GET("/metrics", fasthttpadaptor.NewFastHTTPHandler(promhttp.InstrumentMetricHandler(
 		s.promRegister, promhttp.HandlerFor(s.promRegister, promhttp.HandlerOpts{}),
-	))
-	mux.Handle("/", gateway)
-	log := log.New(newLogWriter(s.log), "", 0)
-	s.httpSrv = &http.Server{Addr: s.conf.HTTPListenAddress, Handler: mux, ErrorLog: log}
+	)))
+
+	router.POST("/", fasthttpadaptor.NewFastHTTPHandler(gateway))
+
+	s.httpSrv = &fasthttp.Server{
+		Handler: router.Handler,
+	}
 
 	s.HTTPListener, err = net.Listen("tcp", s.conf.HTTPListenAddress)
 	if err != nil {
@@ -209,12 +218,12 @@ func (s *Daemon) Start(ctx context.Context) error {
 	if s.conf.ServerTLS() != nil {
 		// This is to avoid any race conditions that might occur
 		// since the tls config is a shared pointer.
-		s.httpSrv.TLSConfig = s.conf.ServerTLS().Clone()
+		s.TLSHTTPListener = tls.NewListener(s.HTTPListener, s.conf.ServerTLS().Clone())
 		s.wg.Go(func() {
 			s.log.Infof("HTTPS Gateway Listening on %s ...", s.conf.HTTPListenAddress)
-			if err := s.httpSrv.ServeTLS(s.HTTPListener, "", ""); err != nil {
-				if err != http.ErrServerClosed {
-					s.log.WithError(err).Error("while starting TLS HTTP server")
+			if err := s.httpSrv.ServeTLS(s.TLSHTTPListener, "", ""); err != nil {
+				if err != nil {
+					s.log.WithError(err).Fatal("while starting TLS HTTP server")
 				}
 			}
 		})
@@ -223,7 +232,7 @@ func (s *Daemon) Start(ctx context.Context) error {
 			s.log.Infof("HTTP Gateway Listening on %s ...", s.conf.HTTPListenAddress)
 			if err := s.httpSrv.Serve(s.HTTPListener); err != nil {
 				if err != http.ErrServerClosed {
-					s.log.WithError(err).Error("while starting HTTP server")
+					s.log.WithError(err).Fatal("while starting HTTP server")
 				}
 			}
 		})
@@ -252,7 +261,7 @@ func (s *Daemon) Close() {
 	}
 
 	s.log.Infof("HTTP Gateway close for %s ...", s.conf.HTTPListenAddress)
-	s.httpSrv.Shutdown(context.Background())
+	s.httpSrv.Shutdown()
 	for i, srv := range s.grpcSrvs {
 		s.log.Infof("GRPC close for %s ...", s.GRPCListeners[i].Addr())
 		srv.GracefulStop()
