@@ -204,7 +204,8 @@ func (s *Daemon) Start(ctx context.Context) error {
 		s.promRegister, promhttp.HandlerFor(s.promRegister, promhttp.HandlerOpts{}),
 	)))
 
-	router.POST("/", fasthttpadaptor.NewFastHTTPHandler(gateway))
+	router.GET("/v1/HealthCheck", fasthttpadaptor.NewFastHTTPHandler(gateway))
+	router.POST("/v1/GetRateLimits", fasthttpadaptor.NewFastHTTPHandler(gateway))
 
 	s.httpSrv = &fasthttp.Server{
 		Handler: router.Handler,
