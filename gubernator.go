@@ -218,6 +218,9 @@ func (s *V1Instance) GetRateLimits(ctx context.Context, r *GetRateLimitsReq) (*G
 	resp.Responses = make([]*RateLimitResp, len(r.Requests))
 	// Collect the async responses as they return
 	for i := range out {
+		if i.Out.Status == Status_NONE {
+			i.Out.Status = Status_UNDER_LIMIT
+		}
 		resp.Responses[i.Idx] = i.Out
 	}
 

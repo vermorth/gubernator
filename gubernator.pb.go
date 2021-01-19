@@ -143,18 +143,21 @@ func (Behavior) EnumDescriptor() ([]byte, []int) {
 type Status int32
 
 const (
-	Status_UNDER_LIMIT Status = 0
-	Status_OVER_LIMIT  Status = 1
+	Status_NONE        Status = 0
+	Status_UNDER_LIMIT Status = 1
+	Status_OVER_LIMIT  Status = 2
 )
 
 var Status_name = map[int32]string{
-	0: "UNDER_LIMIT",
-	1: "OVER_LIMIT",
+	0: "NONE",
+	1: "UNDER_LIMIT",
+	2: "OVER_LIMIT",
 }
 
 var Status_value = map[string]int32{
-	"UNDER_LIMIT": 0,
-	"OVER_LIMIT":  1,
+	"NONE":        0,
+	"UNDER_LIMIT": 1,
+	"OVER_LIMIT":  2,
 }
 
 func (x Status) String() string {

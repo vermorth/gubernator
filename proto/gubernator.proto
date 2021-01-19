@@ -159,8 +159,9 @@ message RateLimitReq {
 }
 
 enum Status {
-  UNDER_LIMIT = 0;
-  OVER_LIMIT = 1;
+  NONE = 0;
+  UNDER_LIMIT = 1;
+  OVER_LIMIT = 2;
 }
 
 message RateLimitResp {
