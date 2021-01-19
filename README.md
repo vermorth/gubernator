@@ -237,9 +237,20 @@ Example response:
 {
   "responses":[
     {
-      "status": 0,
+      "status": "UNDER_LIMIT",
       "limit": "10",
       "remaining": "7",
+      "reset_time": "1551309219226"
+    }
+  ]
+}
+```
+```json
+{
+  "responses":[
+    {
+      "status": "OVER_LIMIT",
+      "limit": "10",
       "reset_time": "1551309219226"
     }
   ]

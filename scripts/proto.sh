@@ -25,16 +25,18 @@ PROTO_DIR=proto
 GO_DIR=.
 PY_DIR=python/gubernator
 export `go env | grep GOPATH | sed s/\"//g`
-GRPC_GATEWAY_DIR=$GOPATH/pkg/mod/github.com/grpc-ecosystem/grpc-gateway\@v1.11.1/third_party/googleapis
+GRPC_GATEWAY_DIR=$GOPATH/pkg/mod/github.com/grpc-ecosystem/grpc-gateway/v2@v2.1.0/third_party/googleapis
 
 protoc -I=$PROTO_DIR \
-    -I=$GRPC_GATEWAY_DIR \
-    --go_out=plugins=grpc:$GO_DIR \
+    -I $GRPC_GATEWAY_DIR \
+    --go-grpc_out=$GO_DIR \
     $PROTO_DIR/*.proto
 
+
 protoc -I=$PROTO_DIR \
-    -I=$GRPC_GATEWAY_DIR \
-    --grpc-gateway_out=logtostderr=true:$GO_DIR \
+    -I $GRPC_GATEWAY_DIR \
+    --grpc-gateway_out $GO_DIR \
+    --grpc-gateway_opt logtostderr=true \
     $PROTO_DIR/*.proto
 
 python3 -m grpc_tools.protoc \

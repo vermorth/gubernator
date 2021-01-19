@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/fasthttp/router"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/mailgun/holster/v3/etcdutil"
 	"github.com/mailgun/holster/v3/setter"
 	"github.com/mailgun/holster/v3/syncutil"
